@@ -5,9 +5,7 @@ from link.main import *
 from multiprocessing.dummy import Pool as ThreadPool
 reload(sys)
 sys.setdefaultencoding('utf-8')
-# apply = False
-# order_id_queue = Queue.Queue()
-# shuju_queue = Queue.Queue()
+
 mysqlbendi = mysqlStorage()
 mysqlSC = mysqlExtract()
 
@@ -18,17 +16,20 @@ def us_info():
 
     # 循环查询出的所有用户信息
     for i in us_id:
-        #查询本地表中是否有这个用户，没有说明是新客户。查询客户的信息进行插入
-        sql = "select id from user_info where user_id = '%s'"%i['user_id']
-        s = mysqlbendi.get_one(sql)
-        if s ==None:
-            chaxun(i)
+        try:
+            #查询本地表中是否有这个用户，没有说明是新客户。查询客户的信息进行插入
+            sql = "select id from user_info1 where user_id = '%s'"%i['user_id']
+            s = mysqlbendi.get_one(sql)
+            if s ==None:
+                chaxun(i)
 
-        #如果有这个用户，删除用户的信息，重新插入
-        else:
-            sql = " delete from user_info where user_id='%s'"%i['user_id']
-            mysqlbendi.delete(sql)
-            chaxun(i)
+            #如果有这个用户，删除用户的信息，重新插入
+            else:
+                sql = " delete from user_info1 where user_id='%s'"%i['user_id']
+                mysqlbendi.delete(sql)
+                chaxun(i)
+        except Exception,e:
+            continue
 def chaxun(i):
 
     sql = "select id,user_id,status,gmt_create,apply_nper,borrowing_amount from t_order_info where user_id = '%s' order by gmt_create" % \
@@ -76,7 +77,7 @@ def chaxun(i):
         shuju['order_id'] = q['id']
 
         # 查询本地表
-        sql = "select succeed_number,order_id from user_info where user_id = '%s' order by id" % (shuju['user_id'])
+        sql = "select succeed_number,order_id from user_info1 where user_id = '%s' order by id" % (shuju['user_id'])
 
         sj = mysqlbendi.get_all(sql)
 
@@ -104,7 +105,7 @@ def chaxun(i):
                           s['order_id']
 
                     money = mysqlSC.get_one(sql)
-                    print money['borrowing_amount']
+
                     shuju['last_money'] = str(money['borrowing_amount'])
                     # 判断最后一条数据是否申请失败
                     if s['succeed_number'] == -1:
@@ -119,7 +120,7 @@ def chaxun(i):
                                 shuju['last_money'] = str(money['borrowing_amount'])
                             else:
                                 timeArray = time.strptime(str(money['rec_date']), "%Y-%m-%d %H:%M:%S")
-                                print timeArray
+
                                 timeArray1 = time.strptime(str(money['reim_date']), "%Y-%m-%d %H:%M:%S")
                                 timeStamp = int(time.mktime(timeArray))
                                 timeStamp1 = int(time.mktime(timeArray1))
@@ -206,45 +207,19 @@ def chaxun(i):
                     elif i['risk_type'] == 4:
                         shuju['ke_xin_score'] = i['risk_reason']
 
-            print shuju
             chunchu(shuju)
-
-
         else:
-            print shuju
+
             chunchu(shuju)
             # shuju_queue.put(shuju)
 
 def chunchu(shuju):
 
-    sql = "INSERT INTO user_info (order_id,user_id,succeed_number,edu_level,gender,professional,marriage,date_birth,loan_length,loan_money,apply_length,binding_number,sesame_score,watermelon_score,ke_xin_score,last_money,last_overdue_days) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)"
+    sql = "INSERT INTO user_info1 (order_id,user_id,succeed_number,edu_level,gender,professional,marriage,date_birth,loan_length,loan_money,apply_length,binding_number,sesame_score,watermelon_score,ke_xin_score,last_money,last_overdue_days) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)"
     params = [shuju['order_id'],shuju['user_id'],shuju['succeed_number'],shuju['edu_level'],shuju['gender'],shuju['professional'],shuju['marriage'],shuju['date_birth'],shuju['loan_length'],shuju['loan_money'],shuju['apply_length'],shuju['binding_number'],shuju['sesame_score'],shuju['watermelon_score'],shuju['ke_xin_score'],shuju['last_money'],shuju['last_overdue_days']]
-    print params
-    a = mysqlbendi.insert(sql,params)
-    print a
+
+    mysqlbendi.insert(sql,params)
+
 
 if __name__ == '__main__':
     us_info()
-    # thread = threading.Thread(target=us_info, args=(order_id_queue,))
-    # thread.start()
-    #
-    # chaxunthreads = []
-    # for i in range(1):
-    #     thread = threading.Thread(target=chaxun, args=(order_id_queue,shuju_queue,))
-    #     thread.start()
-    #     chaxunthreads.append(thread)
-    #
-    # chunchuthreads = []
-    # for i in range(1):
-    #     thread = threading.Thread(target=chunchu, args=(shuju_queue,))
-    #     thread.start()
-    #     chunchuthreads.append(thread)
-    # thread.join()
-    # for t in chaxunthreads:
-    #     t.join()
-    # while not shuju_queue.empty():
-    #      pass
-    # apply = True
-    # for q in chunchuthreads:
-    #     q.join()
-    # print "主线程退出"
